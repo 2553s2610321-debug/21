@@ -1,6 +1,7 @@
 import streamlit as st
 from google import genai
 from google.genai import types
+import time
 
 # --- 1. 페이지 설정 및 와이드 레이아웃 ---
 st.set_page_config(
@@ -92,7 +93,7 @@ st.markdown("""
 st.markdown("""
 <div class="header-container">
     <h1 class="main-title">🎯 High-Teen Career Diagnostic Solution</h1>
-    <p class="sub-title">청소년 맞춤형 AI 진로·직업 매핑 및 학업 가이드 시스템 (Ver 2.6)</p>
+    <p class="sub-title">청소년 맞춤형 AI 진로·직업 매핑 및 학업 가이드 시스템 (Ver 2.5)</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -155,7 +156,7 @@ with right_col:
     
     # 가이드 안내판
     if not st.session_state.messages:
-        st.info("💡 좌측에서 정보를 입력한 후, 아래 입력창에 고민을 적어주시면 전문적인 진단 리포트가 생성됩니다.")
+        st.info("💡 좌측에서 정보를 입력한 후, 아래 입력창에 **'내 성향에 맞는 직업 추천해줘'** 또는 구체적인 고민을 적어주시면 전문적인 진단 리포트가 생성됩니다.")
 
     # 기존 진단 내역 표시
     for message in st.session_state.messages:
@@ -170,43 +171,49 @@ with right_col:
 
         # AI 추천 및 진단서 생성
         with st.chat_message("assistant"):
-            with st.spinner("종합 커리어 데이터를 분석하여 결과 리포트를 작성 중입니다..."):
+            msg_placeholder = st.empty()
+            full_response = ""
+            
+            # 전문 직업 진단 솔루션 페르소나 주입
+            system_instruction = f"""
+            당신은 대한민국 최고 권위의 청소년 종합 진로·직업 진단 시스템입니다.
+            사용자 정보(학년: {school_level}, 관심분야: {', '.join(interests) if interests else '미선택'}, 강점: {user_strength})를 바탕으로 결과 보고서 형식으로 답변하세요.
+            
+            [답변 프레임워크]
+            1. [종합 분석]: 학생의 관심사와 강점을 조합하여 어떤 성향의 인재인지 2줄 요약 평가.
+            2. [최적의 추천 직업 BEST 3]: 구체적인 직업명과 트렌드를 반영한 추천 이유 기술.
+            3. [로드맵 제안]: 고교학점제 선택 과목 제안 혹은 추천 도서/동아리 활동 팁 제시.
+            
+            어조는 전문적이고 체계적이되, 학생이 용기를 얻을 수 있도록 친절하게 끝맺음하세요. 가독성을 극대화하기 위해 이모지와 표/불릿 형식을 적극 활용하세요.
+            """
+            
+            try:
+                chat_history = [system_instruction]
+                for m in st.session_state.messages[-5:]:
+                    chat_history.append(f"{m['role']}: {m['content']}")
                 
-                # 전문 직업 진단 솔루션 페르소나 주입
-                system_instruction = f"""
-                당신은 대한민국 최고 권위의 청소년 종합 진로·직업 진단 시스템입니다.
-                사용자 정보(학년: {school_level}, 관심분야: {', '.join(interests) if interests else '미선택'}, 강점: {user_strength})를 바탕으로 결과 보고서 형식으로 답변하세요.
-                
-                [답변 프레임워크]
-                1. [종합 분석]: 학생의 관심사와 강점을 조합하여 어떤 성향의 인재인지 2줄 요약 평가.
-                2. [최적의 추천 직업 BEST 3]: 구체적인 직업명과 트렌드를 반영한 추천 이유 기술.
-                3. [로드맵 제안]: 고교학점제 선택 과목 제안 혹은 추천 도서/동아리 활동 팁 제시.
-                
-                어조는 전문적이고 체계적이되, 학생이 용기를 얻을 수 있도록 친절하게 끝맺음하세요. 가독성을 극대화하기 위해 이모지와 표/불릿 형식을 적극 활용하세요.
-                """
-                
-                try:
-                    chat_history = [system_instruction]
-                    for m in st.session_state.messages[-5:]:
-                        chat_history.append(f"{m['role']}: {m['content']}")
-                    
-                    # 안정적인 고성능 gemini-2.5-flash 모델 사용 및 글자수 제한 해제
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents="\n".join(chat_history) + f"\nuser: {prompt}",
-                        config=types.GenerateContentConfig(
-                            temperature=0.6
-                        )
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents="\n".join(chat_history) + f"\nuser: {prompt}",
+                    config=types.GenerateContentConfig(
+                        temperature=0.6,
+                        max_output_tokens=1200,
                     )
-                    
-                    # 끊김 방지를 위해 한 번에 완전히 안전하게 출력하도록 수정
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                )
+                
+                # 리포트 출력용 타이핑 효과
+                for chunk in response.text.split():
+                    full_response += chunk + " "
+                    time.sleep(0.02)
+                    msg_placeholder.markdown(full_response + "▌")
+                
+                msg_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-                except Exception as e:
-                    error_msg = str(e)
-                    if "high demand" in error_msg.lower():
-                        st.warning("📊 현재 진단 서버에 트래픽이 몰리고 있습니다. 잠시 후 질문을 다시 제출해 주세요.")
-                    else:
-                        st.error(f"시스템 일시적 오류가 발생했습니다. 다시 시도해 주세요. (Error: {error_msg})")
+            except Exception as e:
+                error_msg = str(e)
+                if "high demand" in error_msg.lower():
+                    st.warning("📊 현재 진단 서버에 트래픽이 몰리고 있습니다. 잠시 후 질문을 다시 제출해 주세요.")
+                else:
+                    st.error(f"시스템 일시적 오류: {error_msg}")
     st.markdown('</div>', unsafe_allow_html=True)
