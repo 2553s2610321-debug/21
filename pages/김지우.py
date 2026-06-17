@@ -16,7 +16,7 @@ st.title("🎓 AI 진로 상담 챗봇")
 st.caption("진로 고민을 입력하면 AI가 맞춤형 상담을 제공합니다.")
 
 # API Key 확인
-api_key = st.secrets.get("GEMINI_API_KEY", "")
+api_key = st.secrets.get("AIzaSyDP1JHuxE71oZBn2cguVDoCmI8s9SP3q1k", "")
 
 if not api_key:
     st.warning("GEMINI_API_KEY가 설정되지 않았습니다.")
