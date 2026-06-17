@@ -10,61 +10,92 @@ st.set_page_config(
     layout="wide"
 )
 
-# 화사하고 세련된 네온 파스텔톤 라이트 모드 CSS
+# 고급스러운 네온 파스텔 스타일시트 초정밀 커스텀
 st.markdown("""
 <style>
-    /* 전체 배경: 밝고 트렌디한 그라데이션 */
+    /* 전체 웹 페이지 배경: 은은하고 미래지향적인 파스텔 오로라 그라데이션 */
     .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
-        color: #2c3e50;
+        background: linear-gradient(125deg, #f3f4f6 0%, #eef2ff 50%, #f5f3ff 100%);
+        color: #1e293b;
     }
     
-    /* 메인 타이틀: 청량한 블루-퍼플 그라데이션 */
+    /* 사이드바 영역 스타일리시 디자인 */
+    .stSidebar {
+        background: rgba(255, 255, 255, 0.45) !important;
+        backdrop-filter: blur(15px);
+        border-right: 1px solid rgba(99, 102, 241, 0.15);
+    }
+    
+    /* 메인 타이틀: 입체감 있는 네온 그라데이션 효과 */
     .main-title {
-        font-size: 2.8rem !important;
-        font-weight: 800;
-        background: linear-gradient(90deg, #4f46e5, #7c3aed, #06b6d4);
+        font-size: 3.2rem !important;
+        font-weight: 900;
+        letter-spacing: -1px;
+        background: linear-gradient(135deg, #4f46e5 10%, #9333ea 50%, #06b6d4 90%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
-        margin-bottom: 0.5rem;
+        margin-top: 1rem;
+        margin-bottom: 0.2rem;
     }
     
     .sub-title {
         text-align: center;
-        color: #64748b;
-        font-size: 1.1rem;
-        margin-bottom: 2.5rem;
-        font-weight: 500;
+        color: #475569;
+        font-size: 1.2rem;
+        margin-bottom: 3.5rem;
+        font-weight: 600;
+        opacity: 0.9;
     }
 
-    /* 화사한 유리 느낌의 카드 (Glassmorphism Light) */
+    /* 챗봇 대화창 영역: 프리미엄 글래스모피즘(Glassmorphism)과 쉐도우 효과 */
     div[data-testid="stVerticalBlock"] > div:has(div.stChatMessage) {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
-        padding: 25px;
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 20px 40px -15px rgba(99, 102, 241, 0.12), 
+                    0 0 0 1px rgba(99, 102, 241, 0.05);
+        padding: 30px !important;
+        margin-bottom: 20px;
     }
 
-    /* 사이드바 스타일 스타일리시하게 변경 */
-    .stSidebar {
-        background-color: rgba(255, 255, 255, 0.6) !important;
-        border-right: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    /* 채팅 메시지 구분선 및 스타일 */
+    /* 대화창 내부 테두리선 부드럽게 지우기 */
     .stChatMessage {
         background-color: transparent !important;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.03) !important;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.06) !important;
+        padding: 15px 10px !important;
+    }
+    
+    /* 입력창 디자인 커스텀 (입력바가 둥글고 예쁘게 돋보이도록 함) */
+    div[data-testid="stChatInput"] {
+        border-radius: 30px !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
+        box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.1) !important;
+        background: white !important;
+    }
+    
+    /* 사이드바 내부의 버튼 디자인 고도화 */
+    .stButton>button {
+        border-radius: 12px !important;
+        background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%) !important;
+        color: white !important;
+        font-weight: bold !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 2. 제목부 ---
 st.markdown('<h1 class="main-title">하이틴 커리어 디자이너</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">꿈을 찾는 중고등학생을 위한 AI 진로 탐색 가이드</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">✨ 나만의 빛나는 스토리를 디자인하는 프리미엄 AI 진로 상담실</p>', unsafe_allow_html=True)
 
 # --- 3. API 연결 및 세션 관리 ---
 if "GEMINI_API_KEY" not in st.secrets:
@@ -80,7 +111,7 @@ client = get_client()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 4. 사이드바: 중고등학생 맞춤 프로필 (관심 분야 세분화 및 추가) ---
+# --- 4. 사이드바: 중고등학생 맞춤 프로필 ---
 with st.sidebar:
     st.markdown("### 🏫 나의 학교 정보")
     school_level = st.selectbox(
@@ -108,7 +139,8 @@ with st.sidebar:
         max_selections=4
     )
     
-    if st.button("💬 대화 초기화", use_container_width=True):
+    st.markdown("---")
+    if st.button("🔄 대화 초기화", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
