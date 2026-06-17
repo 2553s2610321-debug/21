@@ -117,7 +117,7 @@ if user_input := st.chat_input("진로 고민을 입력하세요... (예: 컴퓨
             try:
                 # gemini-2.5-flash-lite 모델 호출
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash-lite',
+                    model='gemini-2.5-flash',
                     contents="\n".join(full_contents),
                     config=types.GenerateContentConfig(
                         temperature=0.7,
