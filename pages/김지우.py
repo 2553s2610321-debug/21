@@ -108,3 +108,4 @@ if user_input:
     st.session_state.messages.append(
         {"role": "assistant", "content": answer}
     )
+api_key = st.secrets["AIzaSyDP1JHuxE71oZBn2cguVDoCmI8s9SP3q1k"]
