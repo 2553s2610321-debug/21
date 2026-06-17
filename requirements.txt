@@ -1,3 +1,2 @@
 streamlit
 google-genai
-GEMINI_API_KEY = "내_실제_제미나이_api_키"
