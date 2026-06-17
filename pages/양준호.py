@@ -356,3 +356,125 @@ if st.button("🔮 평균 성적 기반 대학 추첨하기", type="primary"):
     ### 🧬 **{chosen_dept}**
     """)
     st.balloons()
+import streamlit as st
+import pandas as pd
+import random
+import time
+
+# 1. 페이지 기본 설정
+st.set_page_config(
+    page_title="내신 맞춤 대학 목표 달성기",
+    page_icon="🎯",
+    layout="centered"
+)
+
+# 2. 5등급제 기준 대학 데이터베이스
+GRADE_INFO = {
+    1: {"percent": 10, "range": "상위 0% ~ 10%", "desc": "최상위권 (기존 9등급제의 1~2등급 수준)"},
+    2: {"percent": 34, "range": "상위 10% ~ 34%", "desc": "상위권 (기존 9등급제의 3등급 수준)"},
+    3: {"percent": 66, "range": "상위 34% ~ 66%", "desc": "중위권 (기존 9등급제의 4~5등급 수준)"},
+    4: {"percent": 90, "range": "상위 66% ~ 90%", "desc": "중하위권 (기존 9등급제의 6~7등급 수준)"},
+    5: {"percent": 100, "range": "상위 90% ~ 100%", "desc": "가능성 가득한 구간 (기존 9등급제의 8~9등급 수준)"}
+}
+
+UNI_DB = {
+    1: ["서울대학교", "KAIST", "연세대학교", "고려대학교", "서강대학교", "성균관대학교", "한양대학교"],
+    2: ["중앙대학교", "경희대학교", "한국외국어대학교", "서울시립대학교", "건국대학교", "동국대학교", "홍익대학교"],
+    3: ["국민대학교", "숭실대학교", "세종대학교", "단국대학교", "광운대학교", "가천대학교", "경기대학교"],
+    4: ["명지대학교", "상명대학교", "인천대학교", "가톨릭대학교", "주요 지역 거점 국립대"],
+    5: ["전국 내신 5등급 전형 개설 대학", "가까운 지역 명문 전문대학교"]
+}
+
+# 3. 앱 타이틀 및 소개
+st.title("🎯 목표 학과 & 내신 맞춤 대학 매칭기")
+st.caption("내가 가고 싶은 학과와 내신 성적을 기반으로 갈 수 있는 대학을 매칭해 드립니다.")
+st.markdown("---")
+
+# 4. 희망 학과 입력 창 (추가된 기능)
+st.subheader("🔍 1. 희망 정보 입력")
+target_department = st.text_input(
+    "가고 싶은 학과(또는 학부)를 입력하세요",
+    placeholder="예: 컴퓨터공학과, 경영학과, 미디어커뮤니케이션학과"
+).strip()
+
+st.markdown(" ")
+
+# 5. 과목별 성적 입력 (표 형태)
+st.subheader("📝 2. 과목별 내신 성적 입력 (5등급제)")
+st.info("💡 아래 표의 등급 칸을 수정하세요. 과목이 더 있다면 맨 아래 [+ Add row]로 추가할 수 있습니다.")
+
+# 기본 예시 데이터프레임
+initial_data = {
+    "과목명": ["국어", "수학", "영어", "통합사회", "통합과학"],
+    "등급 (1~5)": [2, 1, 2, 3, 2]
+}
+df = pd.DataFrame(initial_data)
+
+# 테이블 에디터
+edited_df = st.data_editor(
+    df,
+    num_rows="dynamic",
+    use_container_width=True,
+    column_config={
+        "등급 (1~5)": st.column_config.NumberColumn(
+            min_value=1, max_value=5, step=1
+        )
+    }
+)
+
+# 6. 등급 계산 및 예외 처리
+try:
+    avg_grade = edited_df["등급 (1~5)"].mean()
+    if pd.isna(avg_grade):
+        st.warning("⚠️ 최소 한 개 이상의 과목 성적을 입력해주세요.")
+        st.stop()
+except Exception:
+    st.error("❌ 등급 칸에는 1~5 사이의 정수만 입력해 주세요.")
+    st.stop()
+
+# 계산된 평균 등급 노출
+st.markdown(f"### 📊 계산된 평균 내신 등급: `{avg_grade:.2f}` 등급")
+st.markdown("---")
+
+# 7. 대학 매칭 및 결과 출력
+if st.button("🚀 매칭 가능한 대학교 알아보기", type="primary"):
+    # 학과 미입력 시 방어 코드
+    if not target_department:
+        st.warning("⚠️ 가고 싶은 학과를 입력해 주세요!")
+        st.stop()
+        
+    with st.spinner("⏳ 입력하신 학과의 선호도와 내신 등급을 분석 중..."):
+        time.sleep(1.0)
+        
+    # 등급 반올림 처리
+    rounded_grade = round(avg_grade)
+    if rounded_grade < 1: rounded_grade = 1
+    if rounded_grade > 5: rounded_grade = 5
+    
+    info = GRADE_INFO[rounded_grade]
+    # 해당 등급 대학 리스트에서 무작위 매칭
+    chosen_uni = random.choice(UNI_DB[rounded_grade])
+    
+    # 결과 화면 구성
+    st.subheader("📈 내 성적 위치 분석")
+    progress_val = max(0, min(100, 100 - info["percent"]))
+    st.progress(progress_val / 100)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(label="예상 누적 위치", value=info["range"])
+    with col2:
+        st.metric(label="매칭 등급 컷", value=f"{rounded_grade}등급대 대학")
+    st.caption(f"ℹ️ {info['desc']}")
+    
+    st.markdown("---")
+    
+    # 핵심 결과 피드백
+    st.subheader("🎉 지원 가능 추천 대학 결과")
+    st.success(f"""
+    현재 성적으로 합격 가능성이 높은 운명의 대학과 학과입니다:
+    
+    ### 🏛️ **{chosen_uni}** ### 📂 **{target_department}**
+    """)
+    
+    st.balloons()
