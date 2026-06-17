@@ -1,137 +1,145 @@
 import streamlit as st
 from google import genai
 from google.genai import types
-from google.genai.errors import APIError
+import time
 
-# 1. 페이지 설정 및 디자인
+# --- 페이지 설정 ---
 st.set_page_config(
-    page_title="나의 AI 진로 나침반",
-    page_icon="🧭",
+    page_title="AI Career Architect",
+    page_icon="💎",
     layout="wide"
 )
 
-# 커스텀 스타일 (부드러운 블루/네이비 톤의 신뢰감 있는 디자인)
+# --- 고급스러운 커스텀 CSS 적용 ---
 st.markdown("""
-    <style>
-    .title-container {
+<style>
+    /* 전체 배경 그라데이션 */
+    .stApp {
+        background: radial-gradient(circle at top right, #1a1b4b, #0a0a0a);
+        color: #e0e0e0;
+    }
+    
+    /* 메인 타이틀 스타일 */
+    .main-title {
+        font-size: 3rem !important;
+        font-weight: 800;
+        background: linear-gradient(90deg, #9d50bb, #6e48aa, #2ebf91);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-align: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .sub-title {
+        text-align: center;
+        color: #888;
+        font-size: 1.1rem;
+        margin-bottom: 3rem;
+    }
+
+    /* 유리 느낌의 카드 (Glassmorphism) */
+    div[data-testid="stVerticalBlock"] > div:has(div.stChatMessage) {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 20px;
-        background-color: #F0F4F8;
-        border-radius: 10px;
-        margin-bottom: 25px;
     }
-    .bot-message {
-        background-color: #EBF3FC;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
+
+    /* 사이드바 스타일 커스텀 */
+    .stSidebar {
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .user-message {
-        background-color: #F1F1F1;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        text-align: right;
+
+    /* 챗 메시지 아이콘/텍스트 조정 */
+    .stChatMessage {
+        background-color: transparent !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
     }
-    </style>
+</style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-    <div class="title-container">
-        <h2>🧭 AI 진로 나침반: 맞춤형 커리어 멘토</h2>
-        <p>혼자 고민하던 진로, 취업, 전과, 이직 문제를 AI 멘토와 함께 풀어보세요.</p>
-    </div>
-""", unsafe_allow_html=True)
+# --- 제목부 ---
+st.markdown('<h1 class="main-title">CAREER ARCHITECT AI</h1>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">미래의 가능성을 설계하는 프리미엄 진로 컨설팅</p>', unsafe_allow_html=True)
 
-# 2. API 키 확인 및 클라이언트 초기화
+# --- API 연결 및 세션 관리 ---
 if "GEMINI_API_KEY" not in st.secrets:
-    st.error("⚠️ API 키가 설정되지 않았습니다. Streamlit Cloud의 Secrets에 'GEMINI_API_KEY'를 추가해주세요.")
+    st.error("❌ Secrets에 'GEMINI_API_KEY'를 설정해주세요.")
     st.stop()
 
 @st.cache_resource
-def get_gemini_client():
+def get_client():
     return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-client = get_gemini_client()
+client = get_client()
 
-# 3. 대화 세션 상태(Session State) 초기화
 if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "안녕하세요! 당신의 진로 고민을 함께 나눌 AI 멘토입니다. 현재 어떤 고민(전공 선택, 이직, 직무 탐색 등)을 가지고 계시나요? 편하게 말씀해 주세요!"}
-    ]
+    st.session_state.messages = []
 
-# 4. 사이드바: 사용자의 성향 및 상황 미리 정의 (챗봇의 정확도 향상용)
-st.sidebar.header("📋 나의 프로필 (선택)")
-current_status = st.sidebar.selectbox(
-    "현재 신분/상황",
-    ["선택 안 함", "중/고등학생", "대학생(취준생)", "재직자(이직 고민)", "기타"]
-)
-
-interest_tags = st.sidebar.multiselect(
-    "나의 관심 키워드 (중복 가능)",
-    ["IT/개발", "디자인/예술", "기획/마케팅", "연구/과학", "교육/상담", "경영/금융", "창업", "안정성 중심", "창의성 중심"],
-    max_selections=3
-)
-
-if st.sidebar.button("🔄 대화 초기화"):
-    st.session_state.messages = [
-        {"role": "assistant", "content": "대화가 초기화되었습니다. 새로운 진로 고민을 말씀해 주세요!"}
-    ]
-    st.rerun()
-
-# 5. 기존 대화 기록 출력
-for msg in st.session_state.messages:
-    if msg["role"] == "assistant":
-        st.chat_message("assistant").write(msg["content"])
-    else:
-        st.chat_message("user").write(msg["content"])
-
-# 6. 사용자 입력 처리
-if user_input := st.chat_input("진로 고민을 입력하세요... (예: 컴퓨터공학과를 졸업했는데 개발자가 맞는지 모르겠어요.)"):
+# --- 사이드바: 사용자의 Career DNA ---
+with st.sidebar:
+    st.markdown("### 🧬 Your Career DNA")
+    status = st.selectbox("현재 상태", ["대학생", "취업 준비생", "주니어 직장인(1~3년)", "시니어 직장인(5년+)", "이직 희망자"])
+    strengths = st.multiselect("보유 핵심 역량", ["논리적 분석", "창의적 기획", "기술적 전문성", "공감 및 소통", "리더십", "데이터 기반 의사결정"])
     
-    # 사용자 메시지 화면에 표시 및 세션 저장
-    st.chat_message("user").write(user_input)
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    
+    if st.button("💬 대화 초기화", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+
+# --- 대화 내용 표시 ---
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# --- 메인 로직 ---
+if prompt := st.chat_input("당신의 진로 고민을 들려주세요..."):
+    # 사용자 메시지 표시 및 저장
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
     # AI 응답 생성
     with st.chat_message("assistant"):
-        with st.spinner("생각 중..."):
+        msg_placeholder = st.empty()
+        full_response = ""
+        
+        # 시스템 프롬프트 설정 (고급스러운 어조 및 맥락 반영)
+        system_instruction = f"""
+        당신은 상위 1% 커리어 전략가입니다. 사용자의 상태({status})와 역량({', '.join(strengths)})을 바탕으로
+        매우 세련되고 통찰력 있는 진로 상담을 제공하십시오. 
+        대답은 항상 따뜻하지만 전문적이어야 하며, 구체적인 액션 플랜을 제안하는 것이 좋습니다.
+        대화 중간에 이모지를 적절히 섞어 고급스러운 느낌을 유지하세요.
+        """
+        
+        try:
+            # 대화 맥락 포함하여 전달
+            chat_history = [system_instruction]
+            for m in st.session_state.messages[-5:]: # 최근 5개 대화 맥락 유지
+                chat_history.append(f"{m['role']}: {m['content']}")
             
-            # AI에게 역할과 맥락 부여 (System Instruction 역할 프롬프트 설계)
-            context_prompt = f"""
-            당신은 따뜻하고 전문적인 진로 및 커리어 컨설턴트입니다. 
-            사용자의 고민에 공감해주고, 구체적이고 실현 가능한 조언이나 질문을 던져 스스로 답을 찾도록 도와주세요.
-            
-            [참고할 사용자 프로필]
-            - 현재 상태: {current_status}
-            - 관심사: {', '.join(interest_tags) if interest_tags else '미선택'}
-            
-            [대화 내용]
-            """
-            
-            # 이전 대화 내용 누적하여 프롬프트 구성 (최근 6개 대화 유지로 안정성 확보)
-            full_contents = [context_prompt]
-            for m in st.session_state.messages[-6:]:
-                full_contents.append(f"{'사용자' if m['role'] == 'user' else '멘토'}: {m['content']}")
-            
-            try:
-                # gemini-2.5-flash-lite 모델 호출
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents="\n".join(full_contents),
-                    config=types.GenerateContentConfig(
-                        temperature=0.7,
-                        max_output_tokens=800
-                    )
+            response = client.models.generate_content(
+                model='gemini-2.5-flash-lite',
+                contents="\n".join(chat_history) + f"\nuser: {prompt}",
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=1000,
                 )
-                
-                ai_response = response.text
-                st.write(ai_response)
-                
-                # AI 메시지 세션 저장
-                st.session_state.messages.append({"role": "assistant", "content": ai_response})
-                
-            except APIError as e:
-                st.error(f"❌ API 오류가 발생했습니다: {e.message}")
-            except Exception as e:
-                st.error(f"❌ 예기치 못한 오류가 발생했습니다: {str(e)}")
+            )
+            
+            # 타이핑 효과 모사 (고급스러운 경험)
+            for chunk in response.text.split():
+                full_response += chunk + " "
+                time.sleep(0.05)
+                msg_placeholder.markdown(full_response + "▌")
+            
+            msg_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+        except Exception as e:
+            error_msg = str(e)
+            if "high demand" in error_msg.lower():
+                st.warning("💎 현재 상담 대기자가 많습니다. 모델을 'gemini-2.5-flash'로 변경하거나 잠시 후 다시 시도해주세요.")
+            else:
+                st.error(f"상담 중 연결이 잠시 지연되었습니다. 다시 한번 말씀해주시겠어요? (Error: {error_msg})")
