@@ -168,6 +168,60 @@ with right_col:
     st.markdown('<div class="program-card">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">📋 4. 맞춤형 직업 추천 결과 리포트</div>', unsafe_allow_html=True)
     
-    # 초깃값 상태의 안내 카드 안내판
+    # 초깃값 상태의 안내 카드 (텍스트를 짧게 수정하여 누락 차단)
     if not st.session_state.messages:
-        st.info("💡 좌측 정보를
+        st.info("💡 좌측 정보를 기입한 뒤 아래에 질문을 입력하시면 진단 리포트가 생성됩니다.")
+
+    # 기존 리포트 내역 디스플레이
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # 사용자 분석 요청 입력창
+    if prompt := st.chat_input("진로 질문, 학과 문의, 고교학점제 이수 과목 고민을 입력하세요."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # 분석 및 답변 도출 엔진 가동
+        with st.chat_message("assistant"):
+            with st.spinner("학생의 커리어 스펙트럼 데이터를 분석하여 정밀 보고서를 작성 중입니다..."):
+                
+                # 정밀 진단 시스템 전용 특화 프롬프트 설계
+                system_instruction = f"""
+                당신은 대한민국 고등/중등 교육과정을 마스터한 청소년 종합 진로·직업 정밀 진단 시스템입니다.
+                사용자 데이터(소속 학년: {school_level}, 핵심 관심사: {', '.join(interests) if interests else '종합 탐색 중'}, 메인 역량: {user_strength})를 고도 분석한 뒤 문서 결과 리포트 체계로 출력하세요.
+                
+                [결과 리포트 출력 규격]
+                1. 📊 [종합 다차원 분석]: 관심사와 역량을 크로스 매핑하여 어떠한 유망 잠재력을 가진 학생 인재인지 2줄 명확 요약.
+                2. 🎯 [최적 매핑 직업 BEST 3]: 시장 가치 및 트렌드를 포함한 구체적 명칭과 명확한 선정이유 도출.
+                3. 🚀 [미래 교육과정 로드맵]: 고교학점제 선택 과목 가이드 혹은 추천 진로 동아리/관련 학과 목록 제안.
+                
+                텍스트는 정돈된 구조적 어조로 작성하되, 학생이 주도적 자신감을 키우도록 이모지와 마크다운 형식을 다채롭게 변형 적용해 아름답게 끝맺으십시오.
+                """
+                
+                try:
+                    chat_history = [system_instruction]
+                    for m in st.session_state.messages[-5:]:
+                        chat_history.append(f"{m['role']}: {m['content']}")
+                    
+                    # 안정적인 고성능 gemini-2.5-flash 모델 사용 및 config 내 토큰 제한 완전 제거
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents="\n".join(chat_history) + f"\nuser: {prompt}",
+                        config=types.GenerateContentConfig(
+                            temperature=0.65
+                        )
+                    )
+                    
+                    # 도중 뚝 끊기는 버퍼 현상을 원천 방지하기 위한 통짜 즉시 출력 메커니즘
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+
+                except Exception as e:
+                    error_msg = str(e)
+                    if "high demand" in error_msg.lower():
+                        st.warning("📊 현재 전용 진단 서버 사용자가 많아 혼잡합니다. 잠시 후 재입력 부탁드립니다.")
+                    else:
+                        st.error(f"시스템 진단 도중 일시 지연 에러가 포착되었습니다: {error_msg}")
+    st.markdown('</div>', unsafe_allow_html=True)
