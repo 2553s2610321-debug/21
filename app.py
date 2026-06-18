@@ -1,89 +1,105 @@
 import streamlit as st
-from groq import Groq
+import google.generativeai as genai
 
-# --- 1. 페이지 초기 설정 및 디자인 ---
-st.set_page_config(
-    page_title="하이틴 커리어 가이드 AI",
-    page_icon="💬",
-    layout="centered"
-)
+# 1. 페이지 설정 및 테마
+st.set_page_config(page_title="AI 진로 고민 상담소", page_icon="🎯", layout="wide")
 
-st.markdown("""
-<style>
-    .main-header { font-size: 2.2rem; font-weight: 700; color: #1e293b; text-align: center; margin-bottom: 5px; }
-    .sub-header { font-size: 1rem; color: #64748b; text-align: center; margin-bottom: 25px; }
-    div[data-testid="stExpander"] { background-color: #ffffff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="main-header">💬 하이틴 커리어 가이드 AI</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">청소년 맞춤형 진로·직업 고민 상담실 (무제한 서버)</div>', unsafe_allow_html=True)
-
-# --- 2. API 인증 및 세션 초기화 ---
-if "GEMINI_API_KEY" not in st.secrets:
-    st.error("❌ 배포 설정 오류: 외부 Secrets에 'GEMINI_API_KEY'가 설정되지 않았습니다.")
+# 2. API 키 설정 및 예외 처리
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+else:
+    st.error("⚠️ API 키가 설정되지 않았습니다. 사이드바의 Secrets 설정 방법을 확인해주세요.")
     st.stop()
 
-@st.cache_resource
-def get_groq_client():
-    return Groq(api_key=st.secrets["GEMINI_API_KEY"], base_url="https://api.groq.com")
-
-try:
-    client = get_groq_client()
-except Exception as e:
-    st.error("API 클라이언트 초기화 실패. 키를 확인해 주세요.")
-    st.stop()
-
+# 3. 세션 상태(Session State) 초기화 (대화 기록 저장용)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 3. [상단 제안 기능] 심플 프로필 입력 폼 ---
-with st.expander("📊 정밀 진단을 위한 나의 프로필 설정 (클릭하여 열기)", expanded=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        school_level = st.selectbox("현재 학년", ["중학교 1~2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년"])
-    with col2:
-        interest = st.selectbox("가장 관심 있는 분야", ["💻 IT / AI / 소프트웨어", "🎨 예술 / 디자인 / 콘텐츠", "🧬 의학 / 생명과학", "📊 경영 / 마케팅 / 창업", "⚖️ 인문 / 법률 / 사회과학", "🔍 아직 잘 모르겠어요"])
+# 4. 화면 레이아웃 구성
+st.title("🎯 AI 진로 고민 상담소: 캐리어 나침반")
+st.caption("여러분의 꿈과 적성에 맞는 커리어 길잡이가 되어 드립니다.")
+st.markdown("---")
+
+# [사이드바] 사용자 성향 파악 및 초기화 버튼
+with st.sidebar:
+    st.header("📋 나의 성향 profile")
+    interest = st.selectbox(
+        "관심 있는 분야를 선택하세요:",
+        ["IT / 개발", "경영 / 마케팅", "디자인 / 예술", "바이오 / 의학", "교육 / 연구", "기타 (대화로 입력)"]
+    )
     
-    if st.button("🔄 대화 기록 초기화", use_container_width=True):
+    value_priority = st.radio(
+        "직업을 고를 때 가장 중요한 가치는?",
+        ("연봉 및 보상", "워라밸 (일과 삶의 균형)", "자아실현 및 성장", "직업 안정성")
+    )
+    
+    st.markdown("---")
+    if st.button("🔄 대화 초기화하기", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# --- 4. 대화 기록 내역 출력 ---
-if not st.session_state.messages:
-    st.info("👋 안녕하세요! 상단 프로필을 확인하신 후, 하단 입력창에 진로와 학업 고민을 편하게 적어주세요.")
+# 5. 페르소나 및 시스템 프롬프트 설정
+system_instruction = f"""
+당신은 친절하고 전문적인 AI 진로 상담 커리어 코치입니다.
+사용자의 관심 분야는 [{interest}] 이며, 직업 선택 시 가장 중요하게 생각하는 가치는 [{value_priority}] 입니다.
+이 정보를 바탕으로 사용자의 고민에 공감하고, 구체적이고 실현 가능한 진로 로드맵이나 조언을 제공해주세요.
+답변은 친근하면서도 전문적인 어조(하십시요체 또는 해요체 혼용)로 작성하고, 가독성을 위해 이모지와 줄바꿈을 적절히 사용하세요.
+"""
 
+# 6. 대화 기록 출력
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- 5. 챗봇 대화 처리 및 예외 핸들링 ---
-if prompt := st.chat_input("진로, 학과, 과목 선택 등 고민을 입력하세요..."):
+# 7. 챗봇 입력 및 AI 답변 생성
+if prompt := st.chat_input("진로에 대한 어떤 고민이든 편하게 말씀해주세요! (예: 비전공자인데 개발자가 되고 싶어요.)"):
     
+    # 사용자 메시지 추가 및 화면 표시
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
+        
+    # AI 답변 생성 프로세스
     with st.chat_message("assistant"):
-        with st.spinner("AI 상담 선생님이 고민을 분석하고 있습니다..."):
+        message_placeholder = st.empty()
+        full_response = ""
+        
+        try:
+            # gemini-2.5-flash-lite 모델 호출
+            model = genai.GenerativeModel(
+                model_name="gemini-2.5-flash-lite",
+                system_instruction=system_instruction
+            )
             
-            # 잘림 오류 원천 차단: 한 줄 형태의 프롬프트 구성
-            sys_msg = f"당신은 친절한 진로상담 교사입니다. 학생은 {school_level}이며 관심사는 {interest}입니다. 학생의 고민에 따뜻하게 공감하며 한국 교육과정(직업, 학과, 고교학점제 과목)에 맞춰 가독성 좋게 이모지를 섞어 명확히 조언하세요."
+            # 이전 대화 맥락을 포함하여 API 요청 데이터 구성
+            chat_history = []
+            for msg in st.session_state.messages[:-1]: # 현재 프롬프트 제외한 이전 기록
+                chat_history.append({"role": "user" if msg["role"] == "user" else "model", "parts": [msg["content"]]})
             
-            try:
-                api_messages = [{"role": "system", "content": sys_msg}]
-                for m in st.session_state.messages[-4:]:
-                    api_messages.append({"role": m["role"], "content": m["content"]})
-                
-                response = client.chat.completions.create(
-                    model="llama-3.3-70b-specdec",
-                    messages=api_messages,
-                    temperature=0.7,
-                )
-                
-                ai_response = response.choices[0].message.content
-                st.markdown(ai_response)
-                st.session_state.messages.append({"role": "assistant", "content": ai_response})
+            chat = model.start_chat(history=chat_history)
+            response = chat.send_message(prompt)
+            full_response = response.text
+            
+            # 화면에 답변 출력 및 저장
+            message_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            
+        except Exception as e:
+            st.error(f"⚠️ API 호출 중 오류가 발생했습니다: {e}")
+            message_placeholder.markdown("죄송합니다. 잠시 후 다시 시도해주세요.")
 
-            except Exception as e:
-                st.error(f"⚠️ 대화 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. (에러: {str(e)})")
+# 8. 상담 리포트 다운로드 기능 (대화가 존재할 때만 표시)
+if len(st.session_state.messages) > 0:
+    st.markdown("---")
+    report_text = f"=== 진로 상담 리포트 ===\n• 관심 분야: {interest}\n• 우선 가치: {value_priority}\n\n"
+    for msg in st.session_state.messages:
+        role_name = "나" if msg["role"] == "user" else "AI 코치"
+        report_text += f"[{role_name}]: {msg['content']}\n\n"
+        
+    st.download_button(
+        label="📥 현재까지의 상담 리of트 다운로드",
+        data=report_text,
+        file_name="career_consulting_report.txt",
+        mime="text/plain",
+    )
